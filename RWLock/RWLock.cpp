@@ -77,22 +77,33 @@ ReleaseSRWLockSharedPtr SRWEndRead;
 AcquireSRWLockExclusivePtr SRWStartWrite;
 AcquireSRWLockSharedPtr SRWStartRead;
 
+class CSRWLockHelper
+{
+	HMODULE _hModule;
+public:
+	CSRWLockHelper()
+	{
+		_hModule = LoadLibrary(_T("KERNEL32.DLL"));
+
+		SRWInit = (InitializeSRWLockPtr) GetProcAddress(_hModule, "InitializeSRWLock");
+		SRWEndWrite = (ReleaseSRWLockExclusivePtr) GetProcAddress(_hModule, "ReleaseSRWLockExclusive");
+		SRWEndRead = (ReleaseSRWLockSharedPtr) GetProcAddress(_hModule, "ReleaseSRWLockShared");
+		SRWStartWrite = (AcquireSRWLockExclusivePtr) GetProcAddress(_hModule, "AcquireSRWLockExclusive");
+		SRWStartRead = (AcquireSRWLockSharedPtr) GetProcAddress(_hModule, "AcquireSRWLockShared");
+	}
+	~CSRWLockHelper()
+	{
+		FreeModule(_hModule);
+	}
+} __srwl_init;
+
 RWLockIPC::RWLockIPC(intptr_t *lock, LPCTSTR guid)
 {
 	_lock = (unsigned __int32 *) lock;
 
 	//Silently switch to SRW Locks?
-	HMODULE hModule = LoadLibrary(_T("KERNEL32.DLL"));
-	SRWInit = guid ? NULL : (InitializeSRWLockPtr) GetProcAddress(hModule, "InitializeSRWLock");
 	if(SRWInit != NULL)
 	{
-		SRWEndWrite = (ReleaseSRWLockExclusivePtr) GetProcAddress(hModule, "ReleaseSRWLockExclusive");
-		SRWEndRead = (ReleaseSRWLockSharedPtr) GetProcAddress(hModule, "ReleaseSRWLockShared");
-		SRWStartWrite = (AcquireSRWLockExclusivePtr) GetProcAddress(hModule, "AcquireSRWLockExclusive");
-		SRWStartRead = (AcquireSRWLockSharedPtr) GetProcAddress(hModule, "AcquireSRWLockShared");
-
-		FreeModule(hModule);
-
 		SRWInit((PVOID*)_lock);
 	}
 	else
